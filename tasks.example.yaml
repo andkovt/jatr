@@ -1,86 +1,37 @@
 ---
 
+# Global variables
+vars:
+  - name: global_var
+    val: "I am global var"
+
 tasks:
-  up:
+  #Task name
+  example:
+    # Short task description
+    desc: Example command with dynamic variables, templating and conditions
     vars:
-      - name: poop
-        val: this is poop
-      - name: other
-        val:
-          - one
-          - two
-          - three
-      - name: third
-        val: "{{ other|join(sep='--') }}"
-      - name: running_count
-        cmd: docker compose ps | from ssv | length
-        shell: nu
-      - name: sps
-        cmd: "echo pp {{ running_count }}"
-      - name: poopy
-        val: "asdasd count - {{running_count}}"
-    desc: "Docker compose up"
+        # Basic Static Variable
+      - name: var1
+        value: Hello
+        # Variable that is set using shell command
+      - name: user
+        cmd: whoami
+        # Variable uses templating to append two previous variables
+      - name: message
+        value: "{{ var1 }} {{ user }}"
     actions:
-      - "echo {{running_count}}"
-      - task: poop
-      - if: true
-      - echo {{ sps }} {{ poop }} and {{ other }} and {{ third }} and {{ poopy }}
-#      - if:
-#          cmd: (docker compose ps | from ssv | length) == 0
-#          shell: nu
-#      - echo 'is 0'
-#      - echo more
+        # Run another task
+      - task: dependent_task
+        # Logic condition to check if task should continue
+      - if: test -f tasks.example.yaml
+        # Basic shell command
+      - "echo I just want to say {{ message }}"
+        # Run shell command using zsh shell
+      - cmd:
+          cmd: "echo Also... {{ global_var }}"
+          shell: zsh
 
-  poop:
+  dependent_task:
     actions:
-      - if: false
-      - echo pooping
-      - echo pooping more
-
-#  up:
-#    desc: "Up task description"
-#    cmds:
-#      - "ls"
-##      - "echo hello"
-##      - cmd: "docker ps"
-##      - cmd: "echo poop && exit 1"
-##      - "exit 2"
-##      - "oppop"
-##      - "docker exec -it b2b_php bash"
-##      - cmd: "ls"
-##        shell: "nu"
-#
-#  test:test:
-#    cmds:
-#      - echo test
-#
-#  down:
-#    desc: "Down task description"
-#    cmds:
-#
-#  exec:
-#    cmds:
-#      - docker compose exec -it php bash
-#
-#  test:
-#    actions:
-#      - noop:
-#      - if:
-#          cmd: "poop"
-#      - if: "poop"
-##      - task: "ddf"
-#      - "echo hello"
-#    args:
-#      - "test1"
-#      - "arg-rr"
-#    variables:
-#      - name: "stringvar"
-#        value: "stringvalue"
-#    desc: "Description"
-#    cmds:
-#      - echo hello
-#    depends:
-#      - exec
-#      - down
-#    if:
-#      - "false"
+      - "echo Hello from dependent task"
