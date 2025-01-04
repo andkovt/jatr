@@ -1,15 +1,14 @@
 use colored::Colorize;
-use log::info;
 
-pub fn cmd_execution(task: &str, cmd: &str) {
-    // println!("Task '{}' cmd: {}", task.yellow(), cmd.green());
-
-    action_println(task, "cmd", cmd.green().to_string().as_str());
-
-    // info!("Task '{}' cmd: {}",task, cmd);
+pub fn success(msg: &str) {
+    println!("{}", msg.green());
 }
 
-pub fn if_execution(task: &str, cmd: &str, success: bool, reason: &str) {
+pub fn cmd_execution(task: &str, cmd: &str) {
+    action_println(task, "cmd", cmd.green().to_string().as_str());
+}
+
+pub fn if_execution(task: &str, cmd: &str, success: bool) {
     action_println(
         task,
         "if",
@@ -25,12 +24,6 @@ pub fn if_execution(task: &str, cmd: &str, success: bool, reason: &str) {
             "'".bright_black(),
         )
     );
-}
-
-pub fn if_false(task: &str, cmd: &str, reason: &str) {
-    println!("Condition is false, skipping rest of '{task}' tasks. Reason: {reason}");
-    // info!("Condition is false, skipping rest of '{task}' tasks. Reason: {reason}");
-    // info!("Task '{}' if: {}" ,task, cmd);
 }
 
 fn action_println(task: &str, action: &str, content: &str) {

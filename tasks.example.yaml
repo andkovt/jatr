@@ -12,11 +12,19 @@ tasks:
           - three
       - name: third
         val: "{{ other|join(sep='--') }}"
+      - name: running_count
+        cmd: docker compose ps | from ssv | length
+        shell: nu
+      - name: sps
+        cmd: "echo pp {{ running_count }}"
+      - name: poopy
+        val: "asdasd count - {{running_count}}"
     desc: "Docker compose up"
     actions:
+      - "echo {{running_count}}"
       - task: poop
       - if: true
-      - echo {{ poop }} and {{ other }} and {{ third }}
+      - echo {{ sps }} {{ poop }} and {{ other }} and {{ third }} and {{ poopy }}
 #      - if:
 #          cmd: (docker compose ps | from ssv | length) == 0
 #          shell: nu

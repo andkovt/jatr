@@ -1,13 +1,12 @@
-use std::{io, process};
-use std::process::ExitStatus;
-use std::slice::Iter;
-use log::{debug, error, info, log_enabled, warn, Level};
-use tera::{Context, Tera, Value};
-use crate::{output, CommandStatus};
 use crate::tasks::{Action, ActionCommand, Task, TaskFile};
 use crate::templater::{TemplateError, Templater};
+use crate::{output};
+use log::{debug, error, log_enabled, Level};
+use std::process::ExitStatus;
+use std::{io, process};
 
 #[derive(Debug)]
+#[allow(unused)]
 pub enum RunActionError {
     IO(io::Error),
     TaskNotFound(String),
@@ -16,12 +15,12 @@ pub enum RunActionError {
 
 #[derive(Debug)]
 pub struct RunResult {
-    success: bool,
     last_action: ActionStatus
 }
 
 #[derive(Debug)]
 pub struct ActionStatus {
+    #[allow(unused)]
     action: Action,
     success: bool,
     cmd_status: Option<CmdStatus>
@@ -29,24 +28,24 @@ pub struct ActionStatus {
 
 #[derive(Debug)]
 pub struct CmdStatus {
-    cmd: String,
-    exit_status: ExitStatus,
-    stdout: String,
-    stderr: String,
+    #[allow(unused)]
+    pub cmd: String,
+    pub exit_status: ExitStatus,
+    pub stdout: String,
+    pub stderr: String,
 }
 
-pub struct ActionRunner<'a> {
+pub struct ActionRunner {
     task_name: String,
-    task: &'a Task,
     actions: Vec<Action>,
     directory: String,
     templater: Templater,
 }
 
-impl<'a> ActionRunner<'a> {
+impl ActionRunner {
     pub fn for_task(
         name: &str,
-        task: &'a Task,
+        task: &Task,
         directory: &str,
         templater: Templater
     ) -> Self {
@@ -54,18 +53,26 @@ impl<'a> ActionRunner<'a> {
             task_name: String::from(name),
             actions: task.actions.to_vec(),
             directory: String::from(directory),
-            task,
             templater
         }
     }
 
-    pub fn run(&self, tasks: &TaskFile) -> Result<RunResult, RunActionError> {
+    pub fn run(&mut self, tasks: &TaskFile) -> Result<RunResult, RunActionError> {
         let mut latest_result = ActionStatus { action: Action::Noop, cmd_status: None, success: true };
-        let mut success = true;
+
+        match self.templater.resolve_variables(|_name, shell, val| {
+            Self::run_cmd(shell_or_default(shell).as_str(), val, &self.directory, false, true)
+                .map_err(TemplateError::VariableResolveIO)
+        }) {
+            Ok(_) => {}
+            Err(e) => {
+                return Err(RunActionError::TemplatingError(e));
+            }
+        }
 
         for action in &self.actions {
             let templated_action = self.templater.template(action)
-                .map_err(|e| RunActionError::TemplatingError(e))?;
+                .map_err(RunActionError::TemplatingError)?;
 
             latest_result = match self.run_action(&templated_action, tasks) {
                 Ok(result) => result,
@@ -74,8 +81,6 @@ impl<'a> ActionRunner<'a> {
                     return Err(e);
                 }
             };
-
-            success = latest_result.success;
 
             let Some(cmd_status) = &latest_result.cmd_status else {
                 continue;
@@ -93,7 +98,6 @@ impl<'a> ActionRunner<'a> {
                             &self.task_name,
                             &cmd.command,
                             false,
-                            &format!("status code({})", cmd_status.exit_status.code().unwrap_or(-1))
                         );
                         break;
                     }
@@ -103,7 +107,6 @@ impl<'a> ActionRunner<'a> {
                             &self.task_name,
                             &cmd.command,
                             false,
-                            &format!("falsely output({})", cmd_status.stdout.trim())
                         );
 
                         break;
@@ -113,7 +116,6 @@ impl<'a> ActionRunner<'a> {
                         &self.task_name,
                         &cmd.command,
                         true,
-                        ""
                     );
 
                     continue
@@ -126,10 +128,7 @@ impl<'a> ActionRunner<'a> {
             }
         }
 
-        Ok(RunResult {
-            success,
-            last_action: latest_result,
-        })
+        Ok(RunResult { last_action: latest_result })
     }
 
     fn run_action(&self, action: &Action, tasks: &TaskFile) -> Result<ActionStatus, RunActionError> {
@@ -169,11 +168,11 @@ impl<'a> ActionRunner<'a> {
                     return Err(RunActionError::TaskNotFound(String::from(&call.name)))
                 };
 
-                let runner = ActionRunner::for_task(
+                let mut runner = ActionRunner::for_task(
                     &call.name,
                     task,
                     &*self.directory,
-                    Templater::for_task(task, tasks).unwrap()
+                    Templater::for_task(task, tasks)
                 );
 
                 let test = runner.run(tasks);
@@ -184,18 +183,13 @@ impl<'a> ActionRunner<'a> {
     }
 
     fn run_action_command(&self, ac: &ActionCommand, tty: bool, silent: bool) -> Result<CmdStatus, io::Error> {
-        let shell = match &ac.shell {
-            Some(shell) => shell,
-            None => &String::from("sh"),
-        };
-
-        self.run_cmd(shell, &ac.command, tty, silent)
+        Self::run_cmd(shell_or_default(ac.shell.as_ref()).as_str(), &ac.command, &self.directory, tty, silent)
     }
 
-    fn run_cmd(&self, shell: &str, cmd: &str, tty: bool, silent: bool) -> Result<CmdStatus, io::Error> {
+    fn run_cmd(shell: &str, cmd: &str, work_dir: &str, tty: bool, silent: bool) -> Result<CmdStatus, io::Error> {
         let mut proc_cmd = process::Command::new(shell);
         proc_cmd.arg("-c").arg(cmd)
-            .current_dir(&self.directory);
+            .current_dir(work_dir);
 
         let output = match tty {
             true => {
@@ -227,7 +221,7 @@ impl<'a> ActionRunner<'a> {
             return Ok(CmdStatus { cmd: String::from(cmd) , exit_status: status, stdout, stderr });
         }
 
-        if stdout.len() > 0 {
+        if !stdout.is_empty() && !tty && !silent {
             println!("{}", stdout.trim());
         }
 
@@ -235,5 +229,12 @@ impl<'a> ActionRunner<'a> {
         debug!("stdout: {}, stderr: {}", stdout.trim(), stderr.trim());
 
         Ok(CmdStatus { cmd: String::from(cmd), exit_status: status, stdout, stderr })
+    }
+}
+
+pub fn shell_or_default(shell: Option<&String>) -> String {
+    match shell {
+        Some(shell) => String::from(shell),
+        None => String::from("sh"),
     }
 }

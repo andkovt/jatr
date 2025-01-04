@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use std::{fs, io};
 use std::str::FromStr;
 use camino::Utf8Path;
-use serde::{Deserialize, Deserializer, Serialize};
-use serde::de::{Error, MapAccess};
+use serde::{Deserialize, Serialize};
 use serde_nested_with::serde_nested;
 use serde_yaml::Value;
 use void::Void;
@@ -117,8 +116,11 @@ impl FromStr for TaskCall {
 pub struct Variable {
     pub name: String,
     #[serde(alias = "val")]
-    pub value: Value
+    pub value: Option<Value>,
+    pub cmd: Option<String>,
+    pub shell: Option<String>,
 }
+
 
 pub fn read_taskfile(file_path: &Utf8Path) -> Result<TaskFile, TaskFileReadError> {
     let content = match fs::read_to_string(file_path) {

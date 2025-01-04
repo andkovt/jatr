@@ -5,29 +5,16 @@ mod runner;
 mod output;
 mod templater;
 
-use crate::runner::{ActionRunner, RunActionError, RunResult};
-use crate::tasks::{read_taskfile, ActionCommand, Task, TaskFile, TaskFileReadError, Variable};
+use crate::runner::{ActionRunner};
+use crate::tasks::{read_taskfile, Task, TaskFile, TaskFileReadError};
 use camino::Utf8Path;
-use clap::error::ErrorKind;
 use clap::ArgAction;
-use log::{debug, error, info, log_enabled, Level, LevelFilter};
-use serde::{Deserialize, Deserializer, Serialize};
-use serde_nested_with::serde_nested;
-use std::collections::HashMap;
+use log::{error, Level, LevelFilter};
 use std::env::args_os;
-use std::path::Path;
-use std::process::{ExitCode, ExitStatus};
-use std::str::FromStr;
-use std::{env, error::Error, fs, io, process};
-use tera::{Context, Tera};
-use void::{unreachable, Void};
+use std::{env, io};
 use crate::templater::Templater;
 
 const FILE: &str = "tasks.yaml";
-
-struct CommandStatus {
-    exit_code: ExitStatus,
-}
 
 fn get_file_from_args() -> Option<String> {
     let mut is_file = false;
@@ -86,42 +73,7 @@ fn bootstrap_cmd() -> clap::Command {
         ])
 }
 
-fn play_tmpl(vars: &Vec<Variable>) {
-    let mut tera = Tera::default();
-    tera.add_raw_template("test", "Hello {{ name }}");
-
-    let mut context = Context::new();
-    context.insert("name", "andrew");
-    context.insert("rr", &vec!["one", "two"]);
-
-    for var in vars {
-        context.insert(&var.name, &var.value);
-    }
-
-    let result = Tera::one_off(
-        "Poop: {{ poop }}, oth: {{other | join(sep='.')}}, Hello {{ name }} {{ rr | join(sep=\",\") }}",
-        &context,
-        true
-    );
-
-    println!("{}", result.unwrap());
-
-}
-
 fn main() {
-    // let mut tera = Tera::default();
-    // tera.add_raw_template("test", "Hello {{ name }}");
-    //
-    // let mut context = Context::new();
-    // context.insert("name", "andrew");
-    // context.insert("rr", &vec!["one", "two"]);
-    //
-    // let result = Tera::one_off("Hello {{ name }} {{ rr | join(sep=\",\") }}", &context, true);
-    //
-    // println!("{}", result.unwrap());
-    //
-    // return;
-
     let file = get_file_from_args().unwrap_or_else(|| String::from(FILE));
     let path = Utf8Path::from_path(env::current_dir().unwrap().as_path()).unwrap().join(Utf8Path::new(&file));
     setup_logging(get_verbose_from_args());
@@ -167,23 +119,31 @@ fn main() {
       unreachable!("Task not found")
     };
 
-    // println!("{:#?}", file);
-    // play_tmpl(&file.tasks.get("up").unwrap().variables);
-    //
-    // return;
-
-    run_task(name, task, path.parent().unwrap().as_str(), matches, &file);
+    match run_task(name, task, path.parent().unwrap().as_str(), matches, &file) {
+        Ok(exit_code) => {
+            if exit_code == 0 {
+                output::success("Success");
+            }
+            
+            std::process::exit(exit_code)
+        },
+        Err(e) => {
+            error!("Unexpected error running task: {:?}", e);
+            std::process::exit(1);
+        }
+    }
 }
 
 fn run_task(
     name: &str,
     task: &Task,
     work_dir: &str,
-    args: &clap::ArgMatches,
+    _args: &clap::ArgMatches,
     tasks: &TaskFile
-) -> Result<(), io::Error> {
+) -> Result<i32, io::Error> {
     let templater = Templater::for_task(task, tasks);
-    let runner = ActionRunner::for_task(name, task, work_dir, templater.unwrap());
+    let mut runner = ActionRunner::for_task(name, task, work_dir, templater);
+
     match runner.run(tasks) {
         Ok(_) => {}
         Err(e) => {
@@ -191,5 +151,5 @@ fn run_task(
         }
     }
 
-    Ok(())
+    Ok(0)
 }
