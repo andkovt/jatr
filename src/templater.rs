@@ -74,7 +74,9 @@ impl Templater {
                                     status: status.exit_status,
                                 })
                             }
-                            self.context.insert(&var.name, status.stdout.trim());
+
+                            let stdout = status.stdout.trim();
+                            self.context.insert(&var.name, stdout);
                         }
                     }
                 },

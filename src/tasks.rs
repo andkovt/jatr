@@ -23,12 +23,11 @@ pub struct TaskFile {
 #[serde_nested]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Task {
+    #[serde(default = "tmp_default_name")]
+    pub name: String,
+
     #[serde(rename = "desc")]
     pub description: Option<String>,
-
-    #[serde(rename = "if", default = "default_conditions")]
-    #[serde_nested(sub = "ActionCommand", serde(deserialize_with = "crate::utils::string_or_struct"))]
-    pub conditions: Vec<ActionCommand>,
 
     #[serde(rename = "args", default = "default_arguments")]
     #[serde_nested(sub = "Argument", serde(deserialize_with = "crate::utils::string_or_struct"))]
@@ -60,7 +59,6 @@ impl FromStr for Action {
         Ok(Action::Command(ActionCommand {
             command: String::from(s),
             shell: None,
-            parallel: Some(false),
         }))
     }
 }
@@ -84,7 +82,6 @@ pub struct ActionCommand {
     #[serde(rename = "cmd")]
     pub command: String,
     pub shell: Option<String>,
-    pub parallel: Option<bool>
 }
 impl FromStr for ActionCommand {
     type Err = Void;
@@ -93,7 +90,6 @@ impl FromStr for ActionCommand {
         Ok(ActionCommand {
             command: String::from(s),
             shell: None,
-            parallel: Some(false),
         })
     }
 }
@@ -147,4 +143,8 @@ fn default_arguments() -> Vec<Argument> {
 
 fn default_variables() -> Vec<Variable> {
     vec![]
+}
+
+fn tmp_default_name() -> String {
+    String::new()
 }

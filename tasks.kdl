@@ -1,0 +1,38 @@
+
+variables {
+    var1 "hello1"
+    var2 "hello2"
+
+    var3 "echo 1" type="cmd"
+    var4 "docker ps | length" type="cmd" shell="nu"
+    var5 {
+        - 1
+        - 2
+        - "ssdfsdf"
+    }
+}
+
+tasks {
+    up "Example command with dynamic variables, templating and conditions" {
+        variables {
+            var1 "Hello"
+            user "whoami" type="cmd"
+        }
+
+        actions {
+            task "dependent"
+            if "test -f tasks.example.yaml"
+            if "test -f tasks.example.yaml" shell="nu"
+            cmd "echo I just want to say {{ var1 }}"
+            cmd "echo {{ var5 }}"
+        }
+    }
+
+    dependent {
+        variables {
+            var1 "sdf"
+        }
+
+        cmd "echo Hello from dep"
+    }
+}
