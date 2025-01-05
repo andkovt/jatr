@@ -5,14 +5,14 @@ mod runner;
 mod output;
 mod templater;
 
-use crate::runner::{ActionRunner};
+use crate::runner::ActionRunner;
 use crate::tasks::{read_taskfile, Task, TaskFile, TaskFileReadError};
+use crate::templater::Templater;
 use camino::Utf8Path;
 use clap::ArgAction;
 use log::{error, Level, LevelFilter};
 use std::env::args_os;
 use std::{env, io};
-use crate::templater::Templater;
 
 const FILE: &str = "tasks.yaml";
 
@@ -37,18 +37,7 @@ fn get_verbose_from_args() -> bool {
 
 fn setup_logging(verbose: bool) {
     let mut builder = env_logger::builder();
-
-    builder.format(|buf, record| {
-        let level_style = buf.default_level_style(record.level());
-        match record.level() {
-            Level::Info => {
-                writeln!(buf, "{level_style}{}{level_style:#}", record.args())
-            }
-            _ => {
-                writeln!(buf, "{level_style}{}{level_style:#} {}", record.level(), record.args())
-            }
-        }
-    });
+    builder.format_timestamp(None);
 
     builder.filter_level(match verbose {
         true => LevelFilter::Debug,
@@ -86,21 +75,20 @@ fn main() {
             match e.kind() {
                 io::ErrorKind::NotFound => {
                     error!("Tasks file not found at {}", path);
-                    return;
+                    std::process::exit(1);
                 },
                 _ => {
                     error!("{}", e);
                 },
             }
 
-            return;
+            std::process::exit(1);
         }
         Err(TaskFileReadError::ParseError(e)) => {
             println!("{}", format!("Parse Error: {:?}", e));
-            return;
+            std::process::exit(1);
         }
     };
-
 
     for (name, task) in &file.tasks {
         let about = task.description.clone().unwrap_or_else(String::new);
@@ -116,7 +104,7 @@ fn main() {
     };
 
     let Some(task) = file.tasks.get(name) else {
-      unreachable!("Task not found")
+        unreachable!("Task not found")
     };
 
     match run_task(name, task, path.parent().unwrap().as_str(), matches, &file) {
@@ -124,7 +112,7 @@ fn main() {
             if exit_code == 0 {
                 output::success("Success");
             }
-            
+
             std::process::exit(exit_code)
         },
         Err(e) => {

@@ -30,7 +30,7 @@ fn action_println(task: &str, action: &str, content: &str) {
     println!(
         "{}{}{}{}{}{}",
         "Task '".white(),
-        task,
+        task.yellow(),
         "' ".white(),
         match action {
             "cmd" => "cmd".white(),

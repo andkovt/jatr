@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=./tasks.schema.json
 ---
 
 # Global variables
@@ -25,6 +26,9 @@ tasks:
       - task: dependent_task
         # Logic condition to check if task should continue
       - if: test -f tasks.example.yaml
+      - if:
+          cmd: test -f tasks.example.yaml
+          shell: nu
         # Basic shell command
       - "echo I just want to say {{ message }}"
         # Run shell command using zsh shell
