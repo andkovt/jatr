@@ -85,8 +85,7 @@ fn main() {
         cmd = cmd.subcommand(subc);
     }
 
-
-    let after_help: &'static str = color_print::cstr!(
+    cmd = cmd.help_template(color_print::cstr!(
 r#"{usage-heading} {usage}
 
 <bold><underline>Tasks:</underline></bold>
@@ -95,10 +94,7 @@ r#"{usage-heading} {usage}
 <bold><underline>Options:</underline></bold>
 {options}
 {after-help}
-
-"#);
-
-    cmd = cmd.help_template(after_help);
+"#));
 
     let global_matches = cmd.get_matches();
     let (name, matches) = match global_matches.subcommand() {
