@@ -1,18 +1,16 @@
 use serde::{Deserialize, Serialize};
-// use serde_yaml::Value;
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct TaskFile {
     pub variables: Vec<Variable>,
     pub tasks: HashMap<String, Task>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Task {
     pub name: String,
     pub description: Option<String>,
-    pub arguments: Vec<Argument>,
     pub actions: Vec<Action>,
     pub variables: Vec<Variable>,
 }
@@ -31,21 +29,11 @@ pub struct Argument {
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ActionCommand {
     pub command: String,
     pub shell: Option<String>,
     pub tty: bool,
-}
-
-impl Default for ActionCommand {
-    fn default() -> Self {
-        ActionCommand {
-            command: String::new(),
-            shell: None,
-            tty: true,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -73,25 +61,4 @@ pub enum Value {
 pub struct Variable {
     pub name: String,
     pub value: VariableValue,
-}
-
-impl Default for Task {
-    fn default() -> Self {
-        Task {
-            name: String::new(),
-            description: None,
-            arguments: vec![],
-            actions: vec![],
-            variables: vec![],
-        }
-    }
-}
-
-impl Default for TaskFile {
-    fn default() -> Self {
-        TaskFile {
-            variables: vec![],
-            tasks: HashMap::new(),
-        }
-    }
 }

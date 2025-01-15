@@ -438,7 +438,7 @@ pub fn parse_action_task(
 
 pub fn parse_action_cd(
     node: &KdlNode,
-    task_file: &mut TaskFile,
+    _task_file: &mut TaskFile,
     context: &mut Context,
 ) -> Result<(), ParserError> {
     let Some(path) = node.get(0) else {
