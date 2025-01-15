@@ -2,11 +2,10 @@ pub mod environment;
 mod output;
 pub mod templating;
 
-use crate::tasks::{Action, ActionCommand, Task, TaskFile, Variable, VariableValue};
+use crate::tasks::{Action, ActionCommand, Task, TaskFile, Value, Variable, VariableValue};
 use environment::{ExecuteResult, RunnerEnvironment};
 use log::{debug, error};
 use output::Output;
-use serde_yaml::Value;
 use std::result;
 use templating::Templating;
 
@@ -77,7 +76,7 @@ impl<'a> Runner<'a> {
         Ok(RunnerResult::Success)
     }
 
-    fn run_action(&self, action: &Action, silent: bool) -> Result<ActionResult> {
+    fn run_action(&mut self, action: &Action, silent: bool) -> Result<ActionResult> {
         match action {
             Action::Command(cmd) => {
                 let result = self.run_action_command(cmd, action, silent)?;
@@ -116,17 +115,17 @@ impl<'a> Runner<'a> {
 
                 let mut runner = Runner::for_taskfile(self.task_file, self.environment.clone());
                 let result = runner.run(task)?;
-
-                let failed = match result {
-                    RunnerResult::Failure => true,
-                    _ => false,
-                };
+                let failed = matches!(result, RunnerResult::Failure);
 
                 return Ok(ActionResult {
                     last_command: ExecuteResult::default(),
                     break_execution: failed,
                     failed,
                 });
+            }
+            Action::Cd(s) => {
+                self.environment.work_dir(&s)?;
+                self.output.cd_execution(self.environment.get_work_dir().as_str());
             }
             Action::Noop => {}
         }
@@ -147,11 +146,8 @@ impl<'a> Runner<'a> {
         let templated_command = self.templating.process(&cmd.command)?;
 
         if !silent {
-            match action {
-                Action::Command(_) => {
-                    self.output.cmd_execution(&templated_command);
-                }
-                _ => {}
+            if let Action::Command(_) = action {
+                self.output.cmd_execution(&templated_command);
             }
         }
 
@@ -179,7 +175,7 @@ impl<'a> Runner<'a> {
         Ok(())
     }
 
-    fn resolve_variable(&self, variable: &Variable) -> Result<Value> {
+    fn resolve_variable(&mut self, variable: &Variable) -> Result<Value> {
         match &variable.value {
             VariableValue::Static(s) => match s {
                 Value::String(s) => {
@@ -194,7 +190,7 @@ impl<'a> Runner<'a> {
         }
     }
 
-    fn resolve_variable_action(&self, var_name: &str, action: &Action) -> Result<Value> {
+    fn resolve_variable_action(&mut self, var_name: &str, action: &Action) -> Result<Value> {
         let Action::Command(cmd) = action else {
             return Err(RunnerError(
                 format!("Invalid action type for variable '{}'", var_name),

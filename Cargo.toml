@@ -5,9 +5,6 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0.217", features = ["derive"] }
-serde_yaml = "0.9.34"
-void = "1.0.2"
-serde_nested_with = "0.2.5"
 clap = { version = "4.5.23", features = ["derive", "unstable-doc"] }
 log = "0.4.22"
 env_logger = "0.11.6"
@@ -15,3 +12,4 @@ camino = "1.1.9"
 tera = "1.20.0"
 colored = "2.2.0"
 kdl = "6.2.2"
+color-print = "0.3.7"

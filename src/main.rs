@@ -69,7 +69,6 @@ fn main() {
 
     setup_logging(get_verbose_from_args());
 
-    // let dd = taskfile::load(path, None);
     let task_file = match reader::open_and_read(&path) {
         Ok(t) => t,
         Err(e) => {
@@ -85,6 +84,21 @@ fn main() {
 
         cmd = cmd.subcommand(subc);
     }
+
+
+    let after_help: &'static str = color_print::cstr!(
+r#"{usage-heading} {usage}
+
+<bold><underline>Tasks:</underline></bold>
+{subcommands}
+
+<bold><underline>Options:</underline></bold>
+{options}
+{after-help}
+
+"#);
+
+    cmd = cmd.help_template(after_help);
 
     let global_matches = cmd.get_matches();
     let (name, matches) = match global_matches.subcommand() {
@@ -117,12 +131,9 @@ fn run_task<'a>(
     tasks: &'a TaskFile,
 ) -> Result<i32, io::Error> {
     let mut env = RunnerEnvironment::default();
-    env.work_dir(work_dir);
+    env.work_dir(work_dir).unwrap();
 
     let mut runner = Runner::for_taskfile(tasks, env);
-
-    // let templater = Templater::for_task(task, tasks);
-    // let mut runner = ActionRunner::for_task(name, task, work_dir, templater);
 
     match runner.run(task) {
         Ok(RunnerResult::Success) => {

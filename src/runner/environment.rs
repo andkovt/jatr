@@ -1,7 +1,9 @@
+use std::io;
 use crate::runner::Result;
 use crate::S;
 use log::debug;
 use std::process::{Command, ExitStatus};
+use camino::Utf8Path;
 
 #[derive(Debug)]
 pub struct ExecuteResult {
@@ -70,8 +72,17 @@ impl RunnerEnvironment {
         cmd
     }
 
-    pub fn work_dir(&mut self, dir: &str) {
-        self.working_dir = String::from(dir);
+    pub fn work_dir(&mut self, dir: &str) -> Result<()> {
+        let path = Utf8Path::from_path(self.working_dir.as_ref()).unwrap();
+        let joined_path = path.join(dir);
+
+        self.working_dir = String::from(joined_path.canonicalize()?.to_str().unwrap());
+
+        Ok(())
+    }
+
+    pub fn get_work_dir(&self) -> String {
+        self.working_dir.clone()
     }
 }
 

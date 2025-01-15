@@ -1,0 +1,36 @@
+variables {
+    var_string "string"
+    var_int 1
+    var_list {
+        - "string"
+        - 1
+    }
+    var_cmd {
+        cmd "echo -n hello"
+    }
+}
+
+tasks {
+    task1 "description" {
+        vars {
+            task_var "Hello World"
+        }
+
+        cmd "echo {{ task_var }}" shell="nu"
+        if "test -f tasks.kdl"
+        cmd "echo this is NOT skipped"
+        if "test -f nonexistent.txt"
+        cmd "echo this is skipped"
+    }
+
+    task2 {
+        task "task_other"
+        - "echo {{ var_string }}"
+        - "echo {{ var_list|join(sep=',') }}"
+    }
+
+    task_other {
+        if "test -f nonexistent.txt"
+        - "echo not executed"
+    }
+}

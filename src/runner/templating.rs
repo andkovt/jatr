@@ -1,4 +1,4 @@
-use serde_yaml::Value;
+use crate::tasks::Value;
 
 pub struct Templating {
     context: tera::Context,

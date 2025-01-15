@@ -1,5 +1,6 @@
 use kdl::KdlValue;
-use serde_yaml::{Number, Value};
+use crate::tasks::Value;
+// use serde_yaml::{Number, Value};
 
 #[macro_export]
 macro_rules! S {
@@ -13,9 +14,9 @@ pub fn kdl_value_to_value(value: &KdlValue) -> Value {
         KdlValue::String(s) => Value::String(s.clone()),
         KdlValue::Integer(i) => {
             let val: i64 = i.clone().try_into().unwrap();
-            Value::Number(Number::from(val))
+            Value::Int(val)
         }
-        KdlValue::Float(f) => Value::Number(Number::from(f.clone())),
+        KdlValue::Float(f) => Value::Float(f.clone()),
         KdlValue::Bool(b) => Value::Bool(*b),
         KdlValue::Null => Value::Null,
     }

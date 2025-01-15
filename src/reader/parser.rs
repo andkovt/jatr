@@ -1,5 +1,5 @@
 use super::{node, open_and_read};
-use crate::tasks::{ActionCommand, Task, TaskCall};
+use crate::tasks::{ActionCommand, Task, TaskCall, Value};
 use crate::{
     tasks::{Action, TaskFile, Variable, VariableValue},
     utils::kdl_value_to_value,
@@ -7,7 +7,6 @@ use crate::{
 };
 use camino::Utf8Path;
 use kdl::KdlNode;
-use serde_yaml::Value;
 
 #[derive(Debug, Clone)]
 pub enum Scope {
@@ -78,6 +77,7 @@ pub fn parse_node(
         node::NodeType::Actions => parse_actions(node, task_file, context),
         node::NodeType::If => parse_if(node, task_file, context),
         node::NodeType::ActionTask => parse_action_task(node, task_file, context),
+        node::NodeType::ActionCd => parse_action_cd(node, task_file, context),
     }
 }
 
@@ -204,7 +204,7 @@ pub fn parse_variable_node_body(
     if !list_items.is_empty() {
         context.add_variable(Variable {
             name: node.name().value().to_string(),
-            value: VariableValue::Static(Value::Sequence(list_items)),
+            value: VariableValue::Static(Value::List(list_items)),
         });
     }
 
@@ -269,11 +269,12 @@ pub fn parse_actions(
 
     let scoped_context = context.pop_scope();
 
-    context
-        .current_scope()
-        .task
-        .actions
-        .extend(scoped_context.actions);
+    // Move found actions to task scope
+    if matches!(context.current_scope().scope, Scope::Task) {
+        for action in scoped_context.actions {
+            context.add_action(action);
+        }
+    }
 
     Ok(())
 }
@@ -303,7 +304,8 @@ pub fn parse_task(
         }
     }
 
-    let scoped_context = context.pop_scope();
+    let mut scoped_context = context.pop_scope();
+    scoped_context.task.actions.extend(scoped_context.actions);
 
     task_file.tasks.insert(
         String::from(scoped_context.task.name.clone()),
@@ -430,6 +432,23 @@ pub fn parse_action_task(
     context.add_action(Action::Task(TaskCall {
         name: String::from(task),
     }));
+
+    Ok(())
+}
+
+pub fn parse_action_cd(
+    node: &KdlNode,
+    task_file: &mut TaskFile,
+    context: &mut Context,
+) -> Result<(), ParserError> {
+    let Some(path) = node.get(0) else {
+        return Err(ParserError(
+            S!("Missing argument 'path'"),
+            ParserErrorData::MissingArgument { name: S!("path") },
+        ));
+    };
+
+    context.add_action(Action::Cd(path.to_string()));
 
     Ok(())
 }

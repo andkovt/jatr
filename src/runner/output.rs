@@ -14,7 +14,29 @@ impl Output {
 
 impl Output {
     pub fn cmd_execution(&self, cmd: &str) {
-        action_println(&self.task_name, "cmd", cmd.green().to_string().as_str());
+        action_println(
+            &self.task_name,
+            "cmd",
+            format!(
+                "{}{}{}",
+                "'".green(),
+                cmd.green().to_string().as_str(),
+                "'".green(),
+            ).as_str()
+        );
+    }
+    
+    pub fn cd_execution(&self, cd: &str) {
+        action_println(
+            &self.task_name,
+            "cd",
+            format!(
+                "{}{}{}",
+                "'".green(),
+                cd.green().to_string().as_str(),
+                "'".green(),
+            ).as_str()
+        );
     }
 
     pub fn if_execution(&self, cmd: &str, success: bool) {
@@ -38,7 +60,7 @@ impl Output {
 
 fn action_println(task: &str, action: &str, content: &str) {
     println!(
-        "{}{}{}{}{}{}{}{}",
+        "{}{}{}{}{}{}",
         "Task '".white(),
         task.yellow(),
         "' ".white(),
@@ -48,8 +70,6 @@ fn action_println(task: &str, action: &str, content: &str) {
             s => s.yellow(),
         },
         ": ".white(),
-        "'".white(),
         content,
-        "'".white()
     );
 }

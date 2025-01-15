@@ -1,16 +1,14 @@
 use serde::{Deserialize, Serialize};
-use serde_yaml::Value;
+// use serde_yaml::Value;
 use std::collections::HashMap;
-use std::str::FromStr;
-use void::Void;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 pub struct TaskFile {
     pub variables: Vec<Variable>,
     pub tasks: HashMap<String, Task>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Task {
     pub name: String,
     pub description: Option<String>,
@@ -25,32 +23,12 @@ pub enum Action {
     Command(ActionCommand),
     If(ActionCommand),
     Task(TaskCall),
-}
-
-impl FromStr for Action {
-    type Err = Void;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Action::Command(ActionCommand {
-            command: String::from(s),
-            shell: None,
-            tty: true,
-        }))
-    }
+    Cd(String),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Argument {
     pub name: String,
-}
-impl FromStr for Argument {
-    type Err = Void;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Argument {
-            name: String::from(s),
-        })
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -58,18 +36,6 @@ pub struct ActionCommand {
     pub command: String,
     pub shell: Option<String>,
     pub tty: bool,
-}
-
-impl FromStr for ActionCommand {
-    type Err = Void;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(ActionCommand {
-            command: String::from(s),
-            shell: None,
-            tty: true,
-        })
-    }
 }
 
 impl Default for ActionCommand {
@@ -86,23 +52,24 @@ impl Default for ActionCommand {
 pub struct TaskCall {
     pub name: String,
 }
-impl FromStr for TaskCall {
-    type Err = Void;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(TaskCall {
-            name: String::from(s),
-        })
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum VariableValue {
     Static(Value),
     Action(Action),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
+pub enum Value {
+    String(String),
+    Int(i64),
+    Float(f64),
+    List(Vec<Value>),
+    Bool(bool),
+    Null
+}
+
+#[derive(Debug, Clone)]
 pub struct Variable {
     pub name: String,
     pub value: VariableValue,

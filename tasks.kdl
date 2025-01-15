@@ -1,49 +1,7 @@
-
-import "other.tasks.kdl" prefix=other pop=#true bar="12"
-
-variables {
-    var1 "hello1"
-    var2 "hello2"
-
-    var3 "echo 1" type="cmd"
-    var4 "docker ps | length" type="cmd" shell="nu"
-    var5 {
-        - 1
-        - 2
-        - "ssdfsdf"
-    }
-    var6 {
-        cmd "echo 99"
-    }
-    var7 #true
-}
+variables {}
 
 tasks {
-    up "Example command with dynamic variables, templating and conditions" {
-        variables {
-            var1 "Hello"
-            user "whoami" type="cmd"
-        }
-
-        actions {
-            task "dependent"
-            // if "test -f tasks.example.yaml2"
-            if "test -f tasks.example.yaml" shell="nu"
-            cmd "echo I just want to say {{ var1 }}"
-            cmd "echo {{ var5 }}"
-            cmd "echo {{ var6 }}"
-        }
-    }
-
-    dependent {
-        variables {
-            var1 "sdf"
-        }
-
-        actions {
-            cmd "echo {{ var1 }}"
-        }
-
-        - "echo {{varothtsk}}"
+    build:release {
+        - "cargo build --color=always --message-format=json-diagnostic-rendered-ansi --package jatr --bin jatr --profile release"
     }
 }
