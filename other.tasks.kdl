@@ -1,0 +1,26 @@
+variables {
+    varo1 "yo"
+    varo2 1
+    varo3 {
+        - 1
+        - 2
+        - "String"
+    }
+    varo4 {
+        cmd "echo hello" shell="nu"
+    }
+}
+
+tasks {
+    taskfromother "yo from other" {
+        variables {
+            taskvar "sdf"
+        }
+    }
+
+    taskr {
+        actions {
+            cmd "echo 1"
+        }
+    }
+}

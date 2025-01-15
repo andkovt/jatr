@@ -1,22 +1,17 @@
-use std::io::Write;
-mod utils;
-mod tasks;
+mod reader;
 mod runner;
-mod output;
-mod templater;
-mod kdl_parser;
-mod kdl;
+mod tasks;
+mod utils;
 
-use crate::runner::ActionRunner;
-use crate::tasks::{read_taskfile, Task, TaskFile, TaskFileReadError};
-use crate::templater::Templater;
+use crate::tasks::{Task, TaskFile};
 use camino::Utf8Path;
-use clap::{parser, ArgAction};
-use log::{error, warn, Level, LevelFilter};
+use clap::ArgAction;
+use colored::Colorize;
+use log::{error, LevelFilter};
+use runner::environment::RunnerEnvironment;
+use runner::{Runner, RunnerResult};
 use std::env::args_os;
-use std::{env, fs, io};
-use std::error::Error;
-use crate::kdl::{ParseError};
+use std::{env, io};
 
 const FILE: &str = "tasks.kdl";
 
@@ -62,53 +57,23 @@ fn bootstrap_cmd() -> clap::Command {
                 .action(ArgAction::SetTrue),
             clap::arg!(file: -f --file "Specify task file")
                 .global(true)
-                .action(ArgAction::Set)
+                .action(ArgAction::Set),
         ])
-}
-
-fn read_task_file(path: &Utf8Path) -> Result<String, io::Error> {
-    Ok(fs::read_to_string(path)?)
 }
 
 fn main() {
     let file = get_file_from_args().unwrap_or_else(|| String::from(FILE));
-    let path = Utf8Path::from_path(env::current_dir().unwrap().as_path()).unwrap().join(Utf8Path::new(&file));
+    let path = Utf8Path::from_path(env::current_dir().unwrap().as_path())
+        .unwrap()
+        .join(Utf8Path::new(&file));
 
     setup_logging(get_verbose_from_args());
 
-    let file_content = read_task_file(&path).unwrap_or_else(|e| {
-        error!("IO Error reading file: {}. Error: {}", path, e);
-        std::process::exit(1);
-    });
-
-    let task_file = match kdl::parse(file_content) {
-        Ok(file) => file,
+    // let dd = taskfile::load(path, None);
+    let task_file = match reader::open_and_read(&path) {
+        Ok(t) => t,
         Err(e) => {
-            match e {
-                ParseError::SyntaxError(kdl_error) => {
-                    error!("KDL Syntax Error: {}", kdl_error.to_string());
-                    for diagnostic in kdl_error.diagnostics {
-
-                        let mut iter = diagnostic.input.char_indices();
-                        let (start, _) = iter.nth(diagnostic.span.offset()).unwrap();
-                        let (end, _) = iter.nth(diagnostic.span.len()).unwrap();
-                        let slice = &diagnostic.input[start..end];
-
-                        error!(
-                            "Error: {}. {}, Offset: {}, Length: {}",
-                            diagnostic.message.unwrap_or(String::from("Unknown error")),
-                            diagnostic.help.unwrap_or(String::from("Missing help")),
-                            diagnostic.span.offset(),
-                            diagnostic.span.len(),
-                        );
-
-                        error!("{}", slice);
-                    }
-                }
-
-                e => error!("Error parsing file: {}. Error: {:?}", path, e),
-            }
-
+            error!("Error reading file: {}. Error: {:#?}", path, e);
             std::process::exit(1);
         }
     };
@@ -124,21 +89,20 @@ fn main() {
     let global_matches = cmd.get_matches();
     let (name, matches) = match global_matches.subcommand() {
         Some((name, matches)) => (name, matches),
-        None => unreachable!("Subcommand not found")
+        None => unreachable!("Subcommand not found"),
     };
 
     let Some(task) = task_file.tasks.get(name) else {
         unreachable!("Task not found")
     };
 
-    match run_task(name, task, path.parent().unwrap().as_str(), matches, &task_file) {
-        Ok(exit_code) => {
-            if exit_code == 0 {
-                output::success("Success");
-            }
-
-            std::process::exit(exit_code)
-        },
+    match run_task(
+        task,
+        path.parent().unwrap().as_str(),
+        matches,
+        &task_file,
+    ) {
+        Ok(exit_code) => std::process::exit(exit_code),
         Err(e) => {
             error!("Unexpected error running task: {:?}", e);
             std::process::exit(1);
@@ -146,18 +110,36 @@ fn main() {
     }
 }
 
-fn run_task(
-    name: &str,
-    task: &Task,
+fn run_task<'a>(
+    task: &'a Task,
     work_dir: &str,
     _args: &clap::ArgMatches,
-    tasks: &TaskFile
+    tasks: &'a TaskFile,
 ) -> Result<i32, io::Error> {
-    let templater = Templater::for_task(task, tasks);
-    let mut runner = ActionRunner::for_task(name, task, work_dir, templater);
+    let mut env = RunnerEnvironment::default();
+    env.work_dir(work_dir);
 
-    match runner.run(tasks) {
-        Ok(_) => {}
+    let mut runner = Runner::for_taskfile(tasks, env);
+
+    // let templater = Templater::for_task(task, tasks);
+    // let mut runner = ActionRunner::for_task(name, task, work_dir, templater);
+
+    match runner.run(task) {
+        Ok(RunnerResult::Success) => {
+            let s = "Success".green();
+            println!("{}", s);
+            return Ok(0);
+        }
+        Ok(RunnerResult::Skipped) => {
+            let s = "Skipped".yellow();
+            println!("{}", s);
+            return Ok(0);
+        }
+        Ok(RunnerResult::Failure) => {
+            let s = "Failure".red();
+            println!("{}", s);
+            return Ok(1);
+        }
         Err(e) => {
             error!("Error running tasks: {:?}", e);
         }

@@ -1,57 +1,22 @@
-use serde::de::{Error, MapAccess, Visitor};
-use serde::{de, Deserialize, Deserializer};
-use std::fmt;
-use std::marker::PhantomData;
-use std::str::FromStr;
-use void::Void;
+use kdl::KdlValue;
+use serde_yaml::{Number, Value};
 
-pub fn string_or_struct<'de, T, D>(deserializer: D) -> Result<T, D::Error>
-where
-    T: Deserialize<'de> + FromStr<Err = Void>,
-    D: Deserializer<'de>,
-{
-    // This is a Visitor that forwards string types to T's `FromStr` impl and
-    // forwards map types to T's `Deserialize` impl. The `PhantomData` is to
-    // keep the compiler from complaining about T being an unused generic type
-    // parameter. We need T in order to know the Value type for the Visitor
-    // impl.
-    struct StringOrStruct<T>(PhantomData<fn() -> T>);
+#[macro_export]
+macro_rules! S {
+    ($l:expr) => {
+        String::from($l)
+    };
+}
 
-    impl<'de, T> Visitor<'de> for StringOrStruct<T>
-    where
-        T: Deserialize<'de> + FromStr<Err=Void>,
-    {
-        type Value = T;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("string or map or bool")
+pub fn kdl_value_to_value(value: &KdlValue) -> Value {
+    match value {
+        KdlValue::String(s) => Value::String(s.clone()),
+        KdlValue::Integer(i) => {
+            let val: i64 = i.clone().try_into().unwrap();
+            Value::Number(Number::from(val))
         }
-
-        fn visit_str<E>(self, value: &str) -> Result<T, E>
-        where
-            E: de::Error,
-        {
-            Ok(FromStr::from_str(value).unwrap())
-        }
-
-        fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
-        where
-            E: Error,
-        {
-            Ok(FromStr::from_str(v.to_string().as_str()).unwrap())
-        }
-
-        fn visit_map<M>(self, map: M) -> Result<T, M::Error>
-        where
-            M: MapAccess<'de>,
-        {
-            // `MapAccessDeserializer` is a wrapper that turns a `MapAccess`
-            // into a `Deserializer`, allowing it to be used as the input to T's
-            // `Deserialize` implementation. T then deserializes itself using
-            // the entries from the map visitor.
-            Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))
-        }
+        KdlValue::Float(f) => Value::Number(Number::from(f.clone())),
+        KdlValue::Bool(b) => Value::Bool(*b),
+        KdlValue::Null => Value::Null,
     }
-
-    deserializer.deserialize_any(StringOrStruct(PhantomData))
 }

@@ -1,4 +1,6 @@
 
+import "other.tasks.kdl" prefix=other pop=#true bar="12"
+
 variables {
     var1 "hello1"
     var2 "hello2"
@@ -10,6 +12,10 @@ variables {
         - 2
         - "ssdfsdf"
     }
+    var6 {
+        cmd "echo 99"
+    }
+    var7 #true
 }
 
 tasks {
@@ -21,10 +27,11 @@ tasks {
 
         actions {
             task "dependent"
-            if "test -f tasks.example.yaml"
+            // if "test -f tasks.example.yaml2"
             if "test -f tasks.example.yaml" shell="nu"
             cmd "echo I just want to say {{ var1 }}"
             cmd "echo {{ var5 }}"
+            cmd "echo {{ var6 }}"
         }
     }
 
@@ -33,6 +40,10 @@ tasks {
             var1 "sdf"
         }
 
-        cmd "echo Hello from dep"
+        actions {
+            cmd "echo {{ var1 }}"
+        }
+
+        - "echo {{varothtsk}}"
     }
 }

@@ -1,57 +1,32 @@
-use std::collections::HashMap;
-use std::{fs, io};
-use std::str::FromStr;
-use camino::Utf8Path;
 use serde::{Deserialize, Serialize};
-use serde_nested_with::serde_nested;
 use serde_yaml::Value;
+use std::collections::HashMap;
+use std::str::FromStr;
 use void::Void;
-
-#[derive(Debug)]
-pub enum TaskFileReadError {
-    IOError(io::Error),
-    ParseError(serde_yaml::Error),
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TaskFile {
-    #[serde(alias = "vars", default = "default_variables")]
     pub variables: Vec<Variable>,
     pub tasks: HashMap<String, Task>,
 }
 
-#[serde_nested]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Task {
-    #[serde(default = "tmp_default_name")]
     pub name: String,
-
-    #[serde(rename = "desc")]
     pub description: Option<String>,
-
-    #[serde(rename = "args", default = "default_arguments")]
-    #[serde_nested(sub = "Argument", serde(deserialize_with = "crate::utils::string_or_struct"))]
     pub arguments: Vec<Argument>,
-
-    #[serde(rename = "actions")]
-    #[serde_nested(sub = "Action", serde(deserialize_with = "crate::utils::string_or_struct"))]
     pub actions: Vec<Action>,
-
-    #[serde(alias = "vars", default = "default_variables")]
-    pub variables: Vec<Variable>
+    pub variables: Vec<Variable>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Action {
-    #[serde(alias = "noop")]
     Noop,
-    #[serde(alias = "cmd", deserialize_with = "crate::utils::string_or_struct")]
     Command(ActionCommand),
-    #[serde(alias = "if", deserialize_with = "crate::utils::string_or_struct")]
     If(ActionCommand),
-    #[serde(alias = "task", deserialize_with = "crate::utils::string_or_struct")]
     Task(TaskCall),
 }
+
 impl FromStr for Action {
     type Err = Void;
 
@@ -59,19 +34,20 @@ impl FromStr for Action {
         Ok(Action::Command(ActionCommand {
             command: String::from(s),
             shell: None,
+            tty: true,
         }))
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Argument {
-    pub name: String
+    pub name: String,
 }
 impl FromStr for Argument {
     type Err = Void;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Argument{
+        Ok(Argument {
             name: String::from(s),
         })
     }
@@ -79,10 +55,11 @@ impl FromStr for Argument {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ActionCommand {
-    #[serde(rename = "cmd")]
     pub command: String,
     pub shell: Option<String>,
+    pub tty: bool,
 }
+
 impl FromStr for ActionCommand {
     type Err = Void;
 
@@ -90,7 +67,18 @@ impl FromStr for ActionCommand {
         Ok(ActionCommand {
             command: String::from(s),
             shell: None,
+            tty: true,
         })
+    }
+}
+
+impl Default for ActionCommand {
+    fn default() -> Self {
+        ActionCommand {
+            command: String::new(),
+            shell: None,
+            tty: true,
+        }
     }
 }
 
@@ -109,42 +97,34 @@ impl FromStr for TaskCall {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum VariableValue {
+    Static(Value),
+    Action(Action),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Variable {
     pub name: String,
-    #[serde(alias = "val")]
-    pub value: Option<Value>,
-    pub cmd: Option<String>,
-    pub shell: Option<String>,
+    pub value: VariableValue,
 }
 
-
-pub fn read_taskfile(file_path: &Utf8Path) -> Result<TaskFile, TaskFileReadError> {
-    let content = match fs::read_to_string(file_path) {
-        Ok(content) => content,
-        Err(e) => return Err(TaskFileReadError::IOError(e)),
-    };
-
-    let task_file: TaskFile = match serde_yaml::from_str(content.as_str()) {
-        Ok(file) => file,
-        Err(e) => return Err(TaskFileReadError::ParseError(e)),
-    };
-
-    Ok(task_file)
+impl Default for Task {
+    fn default() -> Self {
+        Task {
+            name: String::new(),
+            description: None,
+            arguments: vec![],
+            actions: vec![],
+            variables: vec![],
+        }
+    }
 }
 
-
-fn default_conditions() -> Vec<ActionCommand> {
-    vec![]
-}
-
-fn default_arguments() -> Vec<Argument> {
-    vec![]
-}
-
-fn default_variables() -> Vec<Variable> {
-    vec![]
-}
-
-fn tmp_default_name() -> String {
-    String::new()
+impl Default for TaskFile {
+    fn default() -> Self {
+        TaskFile {
+            variables: vec![],
+            tasks: HashMap::new(),
+        }
+    }
 }
