@@ -1,10 +1,10 @@
 use crate::runner::Result;
 use crate::S;
+use camino::Utf8Path;
 use log::debug;
 use std::process::{Command, ExitStatus};
-use camino::Utf8Path;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ExecuteResult {
     pub cmd: String,
     pub exit_status: ExitStatus,
@@ -82,16 +82,5 @@ impl RunnerEnvironment {
 
     pub fn get_work_dir(&self) -> String {
         self.working_dir.clone()
-    }
-}
-
-impl Default for ExecuteResult {
-    fn default() -> Self {
-        Self {
-            cmd: String::new(),
-            exit_status: ExitStatus::default(),
-            stdout: String::new(),
-            stderr: String::new(),
-        }
     }
 }

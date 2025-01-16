@@ -5,13 +5,13 @@ mod utils;
 
 use crate::tasks::{Task, TaskFile};
 use camino::Utf8Path;
-use clap::ArgAction;
-use colored::Colorize;
+use clap::{ArgAction};
 use log::{error, LevelFilter};
 use runner::environment::RunnerEnvironment;
 use runner::{Runner, RunnerResult};
 use std::env::args_os;
 use std::{env, io};
+use color_print::cstr;
 
 const FILE: &str = "tasks.kdl";
 
@@ -59,6 +59,7 @@ fn bootstrap_cmd() -> clap::Command {
                 .global(true)
                 .action(ArgAction::Set),
         ])
+
 }
 
 fn main() {
@@ -97,6 +98,7 @@ r#"{usage-heading} {usage}
 "#));
 
     let global_matches = cmd.get_matches();
+
     let (name, matches) = match global_matches.subcommand() {
         Some((name, matches)) => (name, matches),
         None => unreachable!("Subcommand not found"),
@@ -133,18 +135,15 @@ fn run_task<'a>(
 
     match runner.run(task) {
         Ok(RunnerResult::Success) => {
-            let s = "Success".green();
-            println!("{}", s);
+            println!(cstr!("<green>Success</>"));
             return Ok(0);
         }
         Ok(RunnerResult::Skipped) => {
-            let s = "Skipped".yellow();
-            println!("{}", s);
+            println!(cstr!("<yellow>Skipped</>"));
             return Ok(0);
         }
         Ok(RunnerResult::Failure) => {
-            let s = "Failure".red();
-            println!("{}", s);
+            println!(cstr!("<red>Failure</>"));
             return Ok(1);
         }
         Err(e) => {
